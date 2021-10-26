@@ -13,13 +13,17 @@ import copy
 doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
 path_strings = [path.getAttribute('d') for path
                 in doc.getElementsByTagName('path')]
+color_strings = [path.getAttribute('style') for path
+                in doc.getElementsByTagName('path')]
 doc.unlink()
 #print(path_strings)
 #print(len(path_strings))
 #print(path_strings[0])
 #newStr = path_strings[0].split()
-global listOfVert
-listOfVert = []
+global lolov
+lolov = []
+global lov
+lov = []
 
 def combined_stl(meshes, save_path="./combined.stl"):
     combined = mesh.Mesh(np.concatenate([m.data for m in meshes]))
@@ -67,15 +71,16 @@ def drawLines():
     surface = pygame.display.set_mode((800,800))
     surface.fill((255,255,255))
     color = (0,0,0)
-    for vert in listOfVert:
-        surface.fill((255,255,255))
-        singlePolarity(vert)
-        time.sleep(1)
-        for i in range(0, len(vert)-3, 2):
-            pygame.draw.line(surface, color, (vert[i], vert[i+1]), (vert[i+2], vert[i+3]))
-            pygame.display.flip()
-            time.sleep(.02)
-        time.sleep(1)
+    for listOfVer in lolov:
+        for vert in listOfVer:
+            #surface.fill((255,255,255))
+            #singlePolarity(vert)
+            #time.sleep(1)
+            for i in range(0, len(vert)-3, 2):
+                pygame.draw.line(surface, color, (vert[i], vert[i+1]), (vert[i+2], vert[i+3]))
+                pygame.display.flip()
+                time.sleep(.02)
+            #time.sleep(1)
 
 def drawLineCurr():
     pygame.init()
@@ -89,19 +94,19 @@ def drawLineCurr():
 
 def makeVerticesPositive():
     min = 0
-    for vert in listOfVert:
+    for vert in lov:
         for v in vert:
             if v < min:
                 min = v
     print(min)
     if min < 0:
-        for vert in listOfVert:
+        for vert in lov:
             for i in range(0,len(vert)):
                 vert[i] = vert[i] - min
 
 def determinePolarity():
     
-    for vert in listOfVert:
+    for vert in lov:
         sum = 0
         if len(vert) < 4:
             continue
@@ -137,7 +142,7 @@ for path in path_strings:
         #print(newStr[i].strip())
         if newStr[i].strip() == 'm':
             if(len(vertices) > 2): 
-                listOfVert.append(vertices.copy())   
+                lov.append(vertices.copy())   
             if(currPoint[0] != 0 and currPoint[1] != 0):
                 tempPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
                 currPoint = np.add(tempPoint, currPoint)
@@ -150,7 +155,7 @@ for path in path_strings:
             for b in range(2, len(newStr[i+1].strip().split())):
                 currPoint = createLine(float(newStr[i+1].strip().split()[b].split(',')[0]) + currPoint[0], float(newStr[i+1].strip().split()[b].split(',')[1]) + currPoint[1], vertices)
         elif newStr[i].strip() == 'M':
-            listOfVert.append(vertices.copy())   
+            lov.append(vertices.copy())   
             vertices = np.empty(1)
             initialPoint = np.empty(1)
             currPoint = np.empty(1)
@@ -222,18 +227,10 @@ for path in path_strings:
 
     #print(vertices)
     print(len(vertices))
+    lolov.append(lov.copy())
+    lov.clear()
 #makeVerticesPositive()
 #determinePolarity()
-myVert = []
-pts = []
-for v in listOfVert:
-    if len(v) > 2:
-        myVert = v
-        break
-for i in range(0, len(myVert), 2):
-    pts.append([myVert[i],myVert[i+1]])
-triangles = getTriangles(pts)
-
 
 #WHITE = (255, 255, 255)
 #BLACK = (0, 0, 0)
@@ -246,7 +243,7 @@ triangles = getTriangles(pts)
 #    pygame.display.update()
 #while True:
 #    time.sleep(1)
-#drawLines()
+drawLines()
 def getSideTri(pt1, pt2, top, bot):
     p1t = pt1.copy()
     p2t = pt2.copy()
@@ -261,37 +258,46 @@ def getSideTri(pt1, pt2, top, bot):
     retVal.append([p1b, p2b, p2t])
     return retVal
 
-topHeight = 10
-botHeight = 0
-cubes = []
-botTri = copy.deepcopy(triangles)
-topTri = copy.deepcopy(triangles)
-sideTri = []
-for t in topTri:
-    for v in t:
-        if len(v) == 2:
-            v.append(topHeight)
-for t in botTri:
-    for v in t:
-        if len(v) == 2:
-            v.append(botHeight)
-cubeTop = mesh.Mesh(np.zeros(len(topTri), dtype=mesh.Mesh.dtype))
-for i in range(0,len(topTri)):
-    cubeTop.vectors[i] = topTri[i]
-cubeBot = mesh.Mesh(np.zeros(len(botTri), dtype=mesh.Mesh.dtype))
-for i in range(0,len(botTri)):
-    cubeBot.vectors[i] = [botTri[i][0], botTri[i][2], botTri[i][1]]
-for i in range(0, len(pts)):
-    if i == len(pts)-1:
-        sideTri.append(getSideTri(pts[i], pts[0], topHeight, botHeight))
-    else:
-        sideTri.append(getSideTri(pts[i], pts[i+1], topHeight, botHeight))
-cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
-for i in range(0, len(sideTri)):
-    for j in range(0,len(sideTri[i])):
-        print("i is " + str(i) + " and j is " + str(j))
-        cubeSide.vectors[i*2 + j] = sideTri[i][j]
-cubes.append(cubeTop)
-cubes.append(cubeBot)
-cubes.append(cubeSide)
-combined_stl(cubes)
+def createStl():
+    topHeight = 0
+    botHeight = 0
+    incrHeight = 10
+    cubes = []
+    for listOfVert in lolov:
+        topHeight = topHeight + incrHeight
+        for vert in listOfVert:
+            pts = []
+            for i in range(0, len(vert), 2):
+                pts.append([vert[i],vert[i+1]])
+            triangles = getTriangles(pts)
+            botTri = copy.deepcopy(triangles)
+            topTri = copy.deepcopy(triangles)
+            sideTri = []
+            for t in topTri:
+                for v in t:
+                    if len(v) == 2:
+                        v.append(topHeight)
+            for t in botTri:
+                for v in t:
+                    if len(v) == 2:
+                        v.append(botHeight)
+            cubeTop = mesh.Mesh(np.zeros(len(topTri), dtype=mesh.Mesh.dtype))
+            for i in range(0,len(topTri)):
+                cubeTop.vectors[i] = topTri[i]
+            cubeBot = mesh.Mesh(np.zeros(len(botTri), dtype=mesh.Mesh.dtype))
+            for i in range(0,len(botTri)):
+                cubeBot.vectors[i] = [botTri[i][0], botTri[i][2], botTri[i][1]]
+            for i in range(0, len(pts)):
+                if i == len(pts)-1:
+                    sideTri.append(getSideTri(pts[i], pts[0], topHeight, botHeight))
+                else:
+                    sideTri.append(getSideTri(pts[i], pts[i+1], topHeight, botHeight))
+            cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
+            for i in range(0, len(sideTri)):
+                for j in range(0,len(sideTri[i])):
+                    #print("i is " + str(i) + " and j is " + str(j))
+                    cubeSide.vectors[i*2 + j] = sideTri[i][j]
+            cubes.append(cubeTop)
+            cubes.append(cubeBot)
+            cubes.append(cubeSide)
+    combined_stl(cubes)
