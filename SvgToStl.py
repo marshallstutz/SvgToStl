@@ -5,6 +5,7 @@ import numpy as np
 from BezierCurve import GetBezierPoints as bp
 import pygame
 import time
+import triangulate
 # read the SVG file
 doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
 path_strings = [path.getAttribute('d') for path
@@ -17,11 +18,42 @@ doc.unlink()
 global listOfVert
 listOfVert = []
 
+def getTriangles(pts):
+    tri = []
+    plist = []
+    if triangulate.IsClockwise(pts):
+        plist = pts[::-1]
+    else:
+        plist = pts[:]
+    while len(plist) >= 3:
+        a = triangulate.GetEar(plist)
+        if a == []:
+            break
+        tri.append(a)
+
+    return tri
+
 def createLine(x, y, vertices):
     arr = np.array([float(x), float(y)])
     currPoint = arr
     vertices = np.append(vertices, currPoint)
     return currPoint
+
+def singlePolarity(vert):
+    sum = 0
+    if len(vert) < 4:
+        return
+    for v in range(0, len(vert),2):
+        if v == len(vert) -2:
+            #print("(" + str(vert[0]) + "," + str(vert[1]) + "),(" + str(vert[v]) + "," + str(vert[v+1]) + ")")
+            sum = sum + (vert[0]-vert[v]) * (vert[1] - vert[v+1])
+        else:
+            #print("(" + str(vert[v]) + "," + str(vert[v+1]) + "),(" + str(vert[v+2]) + "," + str(vert[v+3]) + ")")
+            sum = sum + (vert[v+2]-vert[v]) * (vert[v+3] - vert[v+1])
+    if sum < 0:
+        print("clockwise")
+    else:
+        print("ccw")
 
 def drawLines():
     pygame.init()
@@ -29,10 +61,14 @@ def drawLines():
     surface.fill((255,255,255))
     color = (0,0,0)
     for vert in listOfVert:
+        surface.fill((255,255,255))
+        singlePolarity(vert)
+        time.sleep(1)
         for i in range(0, len(vert)-3, 2):
             pygame.draw.line(surface, color, (vert[i], vert[i+1]), (vert[i+2], vert[i+3]))
             pygame.display.flip()
-    input("Press enter to continue")
+            time.sleep(.02)
+        time.sleep(1)
 
 def drawLineCurr():
     pygame.init()
@@ -55,6 +91,24 @@ def makeVerticesPositive():
         for vert in listOfVert:
             for i in range(0,len(vert)):
                 vert[i] = vert[i] - min
+
+def determinePolarity():
+    
+    for vert in listOfVert:
+        sum = 0
+        if len(vert) < 4:
+            continue
+        for v in range(0, len(vert),2):
+            if v == len(vert) -2:
+                #print("(" + str(vert[0]) + "," + str(vert[1]) + "),(" + str(vert[v]) + "," + str(vert[v+1]) + ")")
+                sum = sum + (vert[0]-vert[v]) * (vert[1] - vert[v+1])
+            else:
+                #print("(" + str(vert[v]) + "," + str(vert[v+1]) + "),(" + str(vert[v+2]) + "," + str(vert[v+3]) + ")")
+                sum = sum + (vert[v+2]-vert[v]) * (vert[v+3] - vert[v+1])
+        if sum < 0:
+            print("clockwise")
+        else:
+            print("ccw")
     
 #for s in newStr:
 #    print(s)
@@ -72,10 +126,11 @@ for path in path_strings:
 
     draw = 0
     for i in range(len(newStr)):
-        print(newStr[i])
+        #print(newStr[i])
         #print(newStr[i].strip())
         if newStr[i].strip() == 'm':
-            listOfVert.append(vertices.copy())   
+            if(len(vertices) > 2): 
+                listOfVert.append(vertices.copy())   
             if(currPoint[0] != 0 and currPoint[1] != 0):
                 tempPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
                 currPoint = np.add(tempPoint, currPoint)
@@ -134,7 +189,7 @@ for path in path_strings:
                     x1 = np.add(currPoint, np.asarray(np.array(line[x].strip().split(',')), dtype = float))
                     x2 = np.add(currPoint, np.asarray(np.array(line[x+1].strip().split(',')), dtype = float))
                     x3 = np.add(currPoint, np.asarray(np.array(line[x+2].strip().split(',')), dtype = float))
-                    newVertices = bp(currPoint, x1, x2, x3, 10)
+                    newVertices = bp(currPoint, x1, x2, x3, 5)
                     vertices = np.append(vertices, newVertices)
                     currPoint = x3
         elif newStr[i].strip() == 'C':
@@ -145,11 +200,12 @@ for path in path_strings:
                 x1 = np.asarray(np.array(line[x].strip().split(',')), dtype = float)
                 x2 = np.asarray(np.array(line[x+1].strip().split(',')), dtype = float)
                 x3 = np.asarray(np.array(line[x+2].strip().split(',')), dtype = float)
-                newVertices = bp(currPoint, x1, x2, x3, 10)
+                newVertices = bp(currPoint, x1, x2, x3, 5)
                 vertices = np.append(vertices, newVertices)
                 currPoint = x3
         elif newStr[i].strip() == 'z' or newStr[i].strip() == 'Z':
-            vertices = np.append(vertices, initialPoint)
+            if(len(vertices) > 2): 
+                vertices = np.append(vertices, initialPoint)
             currPoint = initialPoint.copy()
         else:
             draw = 1
@@ -160,4 +216,27 @@ for path in path_strings:
     #print(vertices)
     print(len(vertices))
 #makeVerticesPositive()
+#determinePolarity()
+myVert = []
+pts = []
+for v in listOfVert:
+    if len(v) > 2:
+        myVert = v
+        break
+for i in range(0, len(myVert), 2):
+    pts.append([myVert[i],myVert[i+1]])
+triangles = getTriangles(pts)
+
+
+#WHITE = (255, 255, 255)
+#BLACK = (0, 0, 0)
+#RED = (255, 0, 0)
+#GREEN = (0, 255, 0)
+#BLUE = (0, 0, 255)
+#screen = pygame.display.set_mode((500, 500))
+#for x in triangles:
+#    pygame.draw.polygon(screen, RED, x, 1)
+#    pygame.display.update()
+#while True:
+#    time.sleep(1)
 drawLines()
