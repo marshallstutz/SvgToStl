@@ -25,7 +25,7 @@ def createLine(x, y, vertices):
 
 def drawLines():
     pygame.init()
-    surface = pygame.display.set_mode((1200,1200))
+    surface = pygame.display.set_mode((800,800))
     surface.fill((255,255,255))
     color = (0,0,0)
     for vert in listOfVert:
@@ -36,7 +36,7 @@ def drawLines():
 
 def drawLineCurr():
     pygame.init()
-    surface = pygame.display.set_mode((1200,1200))
+    surface = pygame.display.set_mode((800,800))
     surface.fill((255,255,255))
     color = (0,0,0)
     for i in range(0, len(vertices)-3, 2):
@@ -64,22 +64,34 @@ def makeVerticesPositive():
 for path in path_strings:
     newStr = re.split('([a-zA-Z])', path)
     global currPoint
-    currPoint = np.empty(1)
+    currPoint = np.array([0.0,0.0])
     global initialPoint
-    initialPoint = np.empty(1)
+    initialPoint = np.array([0.0,0.0])
     global vertices
-    vertices = np.empty(1)
+    vertices = np.array([0.0,0.0])
 
     draw = 0
     for i in range(len(newStr)):
+        print(newStr[i])
         #print(newStr[i].strip())
         if newStr[i].strip() == 'm':
-            initialPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
-            currPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
-            vertices = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
+            listOfVert.append(vertices.copy())   
+            if(currPoint[0] != 0 and currPoint[1] != 0):
+                tempPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
+                currPoint = np.add(tempPoint, currPoint)
+                initialPoint = currPoint.copy()
+            else:
+                initialPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
+                currPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
+            vertices = np.empty(1)
+            vertices = currPoint.copy()
             for b in range(2, len(newStr[i+1].strip().split())):
                 currPoint = createLine(float(newStr[i+1].strip().split()[b].split(',')[0]) + currPoint[0], float(newStr[i+1].strip().split()[b].split(',')[1]) + currPoint[1], vertices)
         elif newStr[i].strip() == 'M':
+            listOfVert.append(vertices.copy())   
+            vertices = np.empty(1)
+            initialPoint = np.empty(1)
+            currPoint = np.empty(1)
             initialPoint = np.asarray(np.array(newStr[i+1].strip().split(',')[0:2]), dtype = float)
             currPoint = np.asarray(np.array(newStr[i+1].strip().split(',')[0:2]), dtype = float)
             vertices = np.asarray(np.array(newStr[i+1].strip().split(',')[0:2]), dtype = float)
@@ -110,7 +122,7 @@ for path in path_strings:
                 currPoint = createLine(points[0], points[1], vertices)
         elif newStr[i].strip() == 'c':
             line = newStr[i+1].strip().split()
-            if len(line)%3 is not 0:
+            if len(line)%3 != 0:
                 print("Some error idk c should be divisible by 3")
                 if len(line) == 1:
                     for l in line:
@@ -127,7 +139,7 @@ for path in path_strings:
                     currPoint = x3
         elif newStr[i].strip() == 'C':
             line = newStr[i+1].strip().split()
-            if len(line)%3 is not 0:
+            if len(line)%3 != 0:
                 print("some error in C part")
             for x in range(0, len(line), 3):
                 x1 = np.asarray(np.array(line[x].strip().split(',')), dtype = float)
@@ -138,13 +150,10 @@ for path in path_strings:
                 currPoint = x3
         elif newStr[i].strip() == 'z' or newStr[i].strip() == 'Z':
             vertices = np.append(vertices, initialPoint)
-            listOfVert.append(vertices.copy())   
-            vertices = np.empty(1)
-            initialPoint = np.empty(1)
-            currPoint = np.empty(1)
+            currPoint = initialPoint.copy()
         else:
             draw = 1
-        if draw is 1:
+        if draw == 1:
             #drawLineCurr()
             draw = 0
 
