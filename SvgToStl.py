@@ -6,6 +6,9 @@ from BezierCurve import GetBezierPoints as bp
 import pygame
 import time
 import triangulate
+import stl
+from stl import mesh
+import copy
 # read the SVG file
 doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
 path_strings = [path.getAttribute('d') for path
@@ -17,6 +20,10 @@ doc.unlink()
 #newStr = path_strings[0].split()
 global listOfVert
 listOfVert = []
+
+def combined_stl(meshes, save_path="./combined.stl"):
+    combined = mesh.Mesh(np.concatenate([m.data for m in meshes]))
+    combined.save(save_path, mode=stl.Mode.ASCII)
 
 def getTriangles(pts):
     tri = []
@@ -239,4 +246,52 @@ triangles = getTriangles(pts)
 #    pygame.display.update()
 #while True:
 #    time.sleep(1)
-drawLines()
+#drawLines()
+def getSideTri(pt1, pt2, top, bot):
+    p1t = pt1.copy()
+    p2t = pt2.copy()
+    p1b = pt1.copy()
+    p2b = pt2.copy()
+    p2t.append(top)
+    p2b.append(bot)
+    p1t.append(top)
+    p1b.append(bot)
+    retVal = []
+    retVal.append([p1t, p1b, p2t])
+    retVal.append([p1b, p2b, p2t])
+    return retVal
+
+topHeight = 10
+botHeight = 0
+cubes = []
+botTri = copy.deepcopy(triangles)
+topTri = copy.deepcopy(triangles)
+sideTri = []
+for t in topTri:
+    for v in t:
+        if len(v) == 2:
+            v.append(topHeight)
+for t in botTri:
+    for v in t:
+        if len(v) == 2:
+            v.append(botHeight)
+cubeTop = mesh.Mesh(np.zeros(len(topTri), dtype=mesh.Mesh.dtype))
+for i in range(0,len(topTri)):
+    cubeTop.vectors[i] = topTri[i]
+cubeBot = mesh.Mesh(np.zeros(len(botTri), dtype=mesh.Mesh.dtype))
+for i in range(0,len(botTri)):
+    cubeBot.vectors[i] = [botTri[i][0], botTri[i][2], botTri[i][1]]
+for i in range(0, len(pts)):
+    if i == len(pts)-1:
+        sideTri.append(getSideTri(pts[i], pts[0], topHeight, botHeight))
+    else:
+        sideTri.append(getSideTri(pts[i], pts[i+1], topHeight, botHeight))
+cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
+for i in range(0, len(sideTri)):
+    for j in range(0,len(sideTri[i])):
+        print("i is " + str(i) + " and j is " + str(j))
+        cubeSide.vectors[i*2 + j] = sideTri[i][j]
+cubes.append(cubeTop)
+cubes.append(cubeBot)
+cubes.append(cubeSide)
+combined_stl(cubes)
