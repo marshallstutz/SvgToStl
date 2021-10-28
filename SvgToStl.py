@@ -1,4 +1,3 @@
-import xml.etree.ElementTree as ET
 from xml.dom import minidom
 import re
 import numpy as np
@@ -12,64 +11,38 @@ import copy
 import earcut
 #import geopandas as gpd
 from shapely.geometry import Polygon
-from shapely.ops import triangulate as tri
 # read the SVG file
 doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
+# path strings is an array containing the d values from the path in the svg file
 path_strings = [path.getAttribute('d') for path
                 in doc.getElementsByTagName('path')]
+# the color value for each path, not used
 color_strings = [path.getAttribute('style') for path
                 in doc.getElementsByTagName('path')]
 doc.unlink()
-#print(path_strings)
-#print(len(path_strings))
-#print(path_strings[0])
-#newStr = path_strings[0].split()
+
+#List of list of vertices
 global lolov
 lolov = []
+
+#List of vertices
 global lov
 lov = []
 
+#Method to save multiple meshes into one stl
 def combined_stl(meshes, save_path="./combined.stl"):
     combined = mesh.Mesh(np.concatenate([m.data for m in meshes]))
     combined.save(save_path, mode=stl.Mode.ASCII)
 
-def getTriangles(pts):
-    tri = []
-    plist = []
-    if triangulate.IsClockwise(pts):
-        plist = pts[::-1]
-    else:
-        plist = pts[:]
-    while len(plist) >= 3:
-        a = triangulate.GetEar(plist)
-        if a == []:
-            break
-        tri.append(a)
-
-    return tri
-
+# Method update the currPoint and add currPoint to vertices
+# Returns updated currPoint
 def createLine(x, y, vertices):
     arr = np.array([float(x), float(y)])
     currPoint = arr
     vertices = np.append(vertices, currPoint)
     return currPoint
 
-def singlePolarity(vert):
-    sum = 0
-    if len(vert) < 4:
-        return
-    for v in range(0, len(vert),2):
-        if v == len(vert) -2:
-            #print("(" + str(vert[0]) + "," + str(vert[1]) + "),(" + str(vert[v]) + "," + str(vert[v+1]) + ")")
-            sum = sum + (vert[0]-vert[v]) * (vert[1] - vert[v+1])
-        else:
-            #print("(" + str(vert[v]) + "," + str(vert[v+1]) + "),(" + str(vert[v+2]) + "," + str(vert[v+3]) + ")")
-            sum = sum + (vert[v+2]-vert[v]) * (vert[v+3] - vert[v+1])
-    if sum < 0:
-        print("clockwise")
-    else:
-        print("ccw")
-
+#Draw all the vertices as lines, used mainly for debugging
 def drawLines():
     pygame.init()
     surface = pygame.display.set_mode((800,800))
@@ -77,16 +50,13 @@ def drawLines():
     color = (0,0,0)
     for listOfVer in lolov:
         for vert in listOfVer:
-            #surface.fill((255,255,255))
-            #singlePolarity(vert)
-            #time.sleep(1)
             for i in range(0, len(vert)-3, 2):
                 pygame.draw.line(surface, color, (vert[i], vert[i+1]), (vert[i+2], vert[i+3]))
                 pygame.display.flip()
             time.sleep(.5)
         time.sleep(10)
-            #time.sleep(1)
 
+#Draws line for the current vertice, used mainly for debugging
 def drawLineCurr():
     pygame.init()
     surface = pygame.display.set_mode((800,800))
@@ -97,42 +67,9 @@ def drawLineCurr():
         pygame.display.flip()
     input("press enter to continue")
 
-def makeVerticesPositive():
-    min = 0
-    for vert in lov:
-        for v in vert:
-            if v < min:
-                min = v
-    print(min)
-    if min < 0:
-        for vert in lov:
-            for i in range(0,len(vert)):
-                vert[i] = vert[i] - min
-
-def determinePolarity():
-    
-    for vert in lov:
-        sum = 0
-        if len(vert) < 4:
-            continue
-        for v in range(0, len(vert),2):
-            if v == len(vert) -2:
-                #print("(" + str(vert[0]) + "," + str(vert[1]) + "),(" + str(vert[v]) + "," + str(vert[v+1]) + ")")
-                sum = sum + (vert[0]-vert[v]) * (vert[1] - vert[v+1])
-            else:
-                #print("(" + str(vert[v]) + "," + str(vert[v+1]) + "),(" + str(vert[v+2]) + "," + str(vert[v+3]) + ")")
-                sum = sum + (vert[v+2]-vert[v]) * (vert[v+3] - vert[v+1])
-        if sum < 0:
-            print("clockwise")
-        else:
-            print("ccw")
-    
-#for s in newStr:
-#    print(s)
-#print(len(newStr))
-#for s in newStr:
- #   print(s)
+# Loop through each path in path_strings
 for path in path_strings:
+    #separate each path in path_strings out by letter
     newStr = re.split('([a-zA-Z])', path)
     global currPoint
     currPoint = np.array([0.0,0.0])
@@ -142,9 +79,8 @@ for path in path_strings:
     vertices = np.array([0.0,0.0])
 
     draw = 0
+    #loop through each letter in the path
     for i in range(len(newStr)):
-        #print(newStr[i])
-        #print(newStr[i].strip())
         if newStr[i].strip() == 'm':
             if(len(vertices) > 2): 
                 lov.append(vertices.copy())   
@@ -227,16 +163,13 @@ for path in path_strings:
         else:
             draw = 1
         if draw == 1:
-            #drawLineCurr()
             draw = 0
 
-    #print(vertices)
     lov.append(vertices)
     print(len(vertices))
     lolov.append(lov.copy())
     lov.clear()
-#makeVerticesPositive()
-#determinePolarity()
+    
 def drawTriangles(triangles):
     WHITE = (255, 255, 255)
     BLACK = (0, 0, 0)
@@ -299,7 +232,6 @@ def getSides(pts, holes, topHeight, botHeight):
         cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
         for i in range(0, len(sideTri)):
             for j in range(0,len(sideTri[i])):
-                #print("i is " + str(i) + " and j is " + str(j))
                 cubeSide.vectors[i*2 + j] = sideTri[i][j]
         retVal.append(cubeSide)
 
@@ -348,15 +280,7 @@ def createStl():
                     allVertPts.pop(j)
                     polygons.pop(j)
                     holes.pop(j)
-
-                #allVerts.append(v)
-        #allVertPts contains a list of polygons that have the pts 
         topHeight = topHeight + smallerInc
-        #pts = []
-        #for i in range(0, len(allVerts), 2):
-            #pts.append([allVerts[i],allVerts[i+1]])
-        allTri = []
-        #screen = getScreenReady()
         for c in range(len(allVertPts)):
             print(1)
             verts = []
@@ -364,8 +288,6 @@ def createStl():
                 verts.append(allVertPts[c][b][0])
                 verts.append(allVertPts[c][b][1])
             newTri = earcut.earcut(verts, holes[c])
-            #allTri.append(newTri)
-            #drawNewTri(newTri, allVertPts[c])
             botTri = []
             topTri = []
             topPts = copy.deepcopy(allVertPts[c])
@@ -388,44 +310,5 @@ def createStl():
             sideCubes = getSides(allVertPts[c], holes[c], topHeight, botHeight)
             for side in sideCubes:
                 cubes.append(side)
-            #draw sides
-            
         combined_stl(cubes)
-
-#        for p in allVertPts:
- #           triangles = getTriangles(p)
-  #          botTri = copy.deepcopy(triangles)
-   #         topTri = copy.deepcopy(triangles)
-    #        sideTri = []
-     #       for t in topTri:
-      #          for v in t:
-       #             if len(v) == 2:
-        #                v.append(topHeight)
-         #   for t in botTri:
-          #      for v in t:
-           #         if len(v) == 2:
-            #            v.append(botHeight)
-            #cubeTop = mesh.Mesh(np.zeros(len(topTri), dtype=mesh.Mesh.dtype))
-            #for i in range(0,len(topTri)):
-            #    cubeTop.vectors[i] = topTri[i]
-#            cubeBot = mesh.Mesh(np.zeros(len(botTri), dtype=mesh.Mesh.dtype))
- #           for i in range(0,len(botTri)):
-  #              cubeBot.vectors[i] = [botTri[i][0], botTri[i][2], botTri[i][1]]
-   #         for i in range(0, len(p)):
-    #            if i == len(p)-1:
-     #               sideTri.append(getSideTri(p[i], p[0], topHeight, botHeight))
-      #          else:
-       #             sideTri.append(getSideTri(p[i], p[i+1], topHeight, botHeight))
-        #    cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
-         #   for i in range(0, len(sideTri)):
-          #      for j in range(0,len(sideTri[i])):
-           #         #print("i is " + str(i) + " and j is " + str(j))
-            #        cubeSide.vectors[i*2 + j] = sideTri[i][j]
-    #        cubes.append(cubeTop)
-    #        cubes.append(cubeBot)
-    #        cubes.append(cubeSide)
-    #combined_stl(cubes)
-    #drawTriangles(triangles)
-
-
 createStl()
