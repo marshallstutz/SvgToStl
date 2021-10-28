@@ -31,6 +31,18 @@ def IsClockwise(poly):
 		return True
 	return False
 
+def GetArea(poly):
+	# initialize sum with last element
+	sum = (poly[0][0] - poly[len(poly)-1][0]) * (poly[0][1] + poly[len(poly)-1][1])
+	# iterate over all other elements (0 to n-1)
+	for i in range(len(poly)-1):
+		sum += (poly[i+1][0] - poly[i][0]) * (poly[i+1][1] + poly[i][1])
+	if sum > 0:
+		return sum
+	else:
+		return -sum
+
+
 def GetEar(poly):
 	size = len(poly)
 	if size < 3:

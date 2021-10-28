@@ -9,6 +9,10 @@ import triangulate
 import stl
 from stl import mesh
 import copy
+import earcut
+#import geopandas as gpd
+from shapely.geometry import Polygon
+from shapely.ops import triangulate as tri
 # read the SVG file
 doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
 path_strings = [path.getAttribute('d') for path
@@ -79,7 +83,8 @@ def drawLines():
             for i in range(0, len(vert)-3, 2):
                 pygame.draw.line(surface, color, (vert[i], vert[i+1]), (vert[i+2], vert[i+3]))
                 pygame.display.flip()
-                time.sleep(.02)
+            time.sleep(.5)
+        time.sleep(10)
             #time.sleep(1)
 
 def drawLineCurr():
@@ -226,24 +231,40 @@ for path in path_strings:
             draw = 0
 
     #print(vertices)
+    lov.append(vertices)
     print(len(vertices))
     lolov.append(lov.copy())
     lov.clear()
 #makeVerticesPositive()
 #determinePolarity()
+def drawTriangles(triangles):
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+    screen = pygame.display.set_mode((500, 500))
+    for x in triangles:
+        pygame.draw.polygon(screen, RED, x, 1)
+        pygame.display.update()
+    while True:
+        time.sleep(1)
 
-#WHITE = (255, 255, 255)
-#BLACK = (0, 0, 0)
-#RED = (255, 0, 0)
-#GREEN = (0, 255, 0)
-#BLUE = (0, 0, 255)
-#screen = pygame.display.set_mode((500, 500))
-#for x in triangles:
-#    pygame.draw.polygon(screen, RED, x, 1)
-#    pygame.display.update()
-#while True:
-#    time.sleep(1)
-drawLines()
+def drawNewTri(newTri, pts):
+    WHITE = (255, 255, 255)
+    BLACK = (0, 0, 0)
+    RED = (255, 0, 0)
+    GREEN = (0, 255, 0)
+    BLUE = (0, 0, 255)
+    screen = pygame.display.set_mode((500, 500))
+    for i in range(0, len(newTri), 3):
+        pygame.draw.polygon(screen, RED, [pts[newTri[i]], pts[newTri[i+1]], pts[newTri[i+2]]], 1)
+        pygame.display.update()
+    time.sleep(5)
+
+def getScreenReady():
+    return pygame.display.set_mode((500, 500))
+#drawLines()
 def getSideTri(pt1, pt2, top, bot):
     p1t = pt1.copy()
     p2t = pt2.copy()
@@ -258,46 +279,153 @@ def getSideTri(pt1, pt2, top, bot):
     retVal.append([p1b, p2b, p2t])
     return retVal
 
+def getSides(pts, holes, topHeight, botHeight):
+    retVal = []
+    splitPoints = []
+    if len(holes) > 0:
+        splitPoints.append(pts[0:holes[0]])
+        for i in range(len(holes)):
+            splitPoints.append(pts[holes[i]:holes[i+1]]) if len(holes)-1 > i else splitPoints.append(pts[holes[i]:len(pts)])
+    else:
+        splitPoints.append(pts)
+        
+    for p in splitPoints:
+        sideTri = []
+        for i in range(0, len(p)):
+            if i == len(p)-1:
+                sideTri.append(getSideTri(p[i], p[0], topHeight, botHeight))
+            else:
+                sideTri.append(getSideTri(p[i], p[i+1], topHeight, botHeight))
+        cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
+        for i in range(0, len(sideTri)):
+            for j in range(0,len(sideTri[i])):
+                #print("i is " + str(i) + " and j is " + str(j))
+                cubeSide.vectors[i*2 + j] = sideTri[i][j]
+        retVal.append(cubeSide)
+
+    return retVal
+
 def createStl():
     topHeight = 0
     botHeight = 0
     incrHeight = 10
+    smallerInc = 1
     cubes = []
     for listOfVert in lolov:
         topHeight = topHeight + incrHeight
+        allVerts = []
+        allVertPts = []
+        pts = []
+        holes = []
+        for v in listOfVert:
+            holes.append([])
+        
         for vert in listOfVert:
-            pts = []
+            pts=[]
             for i in range(0, len(vert), 2):
                 pts.append([vert[i],vert[i+1]])
-            triangles = getTriangles(pts)
-            botTri = copy.deepcopy(triangles)
-            topTri = copy.deepcopy(triangles)
-            sideTri = []
-            for t in topTri:
-                for v in t:
-                    if len(v) == 2:
-                        v.append(topHeight)
-            for t in botTri:
-                for v in t:
-                    if len(v) == 2:
-                        v.append(botHeight)
+            allVertPts.append(pts.copy())
+        for j in range(0, len(allVertPts)):
+            for i in range(0, len(allVertPts)-1):
+                if triangulate.GetArea(allVertPts[i]) < triangulate.GetArea(allVertPts[i+1]):
+                    tempPt = allVertPts[i].copy()
+                    allVertPts[i] = allVertPts[i+1].copy()
+                    allVertPts[i+1] = tempPt.copy()
+        polygons = []
+        for pt in allVertPts:
+            polygons.append(Polygon(pt.copy()))
+        for i in range(0,len(allVertPts)-1):
+            if(i > len(allVertPts)-2):
+                continue
+            for j in range(i+1, len(allVertPts)):
+                if(j > len(allVertPts)-1):
+                    continue
+                if polygons[i].contains(Polygon(allVertPts[j])):
+                    print("combine " + str(i) + " with " + str(j))
+                    holes[i].append(len(allVertPts[i]))
+                    for l in allVertPts[j]:
+                        allVertPts[i].append(l)
+                    allVertPts.pop(j)
+                    polygons.pop(j)
+                    holes.pop(j)
+
+                #allVerts.append(v)
+        #allVertPts contains a list of polygons that have the pts 
+        topHeight = topHeight + smallerInc
+        #pts = []
+        #for i in range(0, len(allVerts), 2):
+            #pts.append([allVerts[i],allVerts[i+1]])
+        allTri = []
+        #screen = getScreenReady()
+        for c in range(len(allVertPts)):
+            print(1)
+            verts = []
+            for b in range(len(allVertPts[c])):
+                verts.append(allVertPts[c][b][0])
+                verts.append(allVertPts[c][b][1])
+            newTri = earcut.earcut(verts, holes[c])
+            #allTri.append(newTri)
+            #drawNewTri(newTri, allVertPts[c])
+            botTri = []
+            topTri = []
+            topPts = copy.deepcopy(allVertPts[c])
+            botPts = copy.deepcopy(allVertPts[c])
+            for tp in topPts:
+                tp.append(topHeight)
+            for bp in botPts:
+                bp.append(botHeight)
+            for i in range(0, len(newTri), 3):
+                topTri.append((topPts[newTri[i]], topPts[newTri[i+1]], topPts[newTri[i+2]]))
+                botTri.append((botPts[newTri[i]], botPts[newTri[i+2]], botPts[newTri[i+1]]))
             cubeTop = mesh.Mesh(np.zeros(len(topTri), dtype=mesh.Mesh.dtype))
             for i in range(0,len(topTri)):
                 cubeTop.vectors[i] = topTri[i]
-            cubeBot = mesh.Mesh(np.zeros(len(botTri), dtype=mesh.Mesh.dtype))
+            cubeBot = mesh.Mesh(np.zeros(len(verts), dtype=mesh.Mesh.dtype))
             for i in range(0,len(botTri)):
-                cubeBot.vectors[i] = [botTri[i][0], botTri[i][2], botTri[i][1]]
-            for i in range(0, len(pts)):
-                if i == len(pts)-1:
-                    sideTri.append(getSideTri(pts[i], pts[0], topHeight, botHeight))
-                else:
-                    sideTri.append(getSideTri(pts[i], pts[i+1], topHeight, botHeight))
-            cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
-            for i in range(0, len(sideTri)):
-                for j in range(0,len(sideTri[i])):
-                    #print("i is " + str(i) + " and j is " + str(j))
-                    cubeSide.vectors[i*2 + j] = sideTri[i][j]
+                cubeBot.vectors[i] = botTri[i]
             cubes.append(cubeTop)
             cubes.append(cubeBot)
-            cubes.append(cubeSide)
-    combined_stl(cubes)
+            sideCubes = getSides(allVertPts[c], holes[c], topHeight, botHeight)
+            for side in sideCubes:
+                cubes.append(side)
+            #draw sides
+            
+        combined_stl(cubes)
+
+#        for p in allVertPts:
+ #           triangles = getTriangles(p)
+  #          botTri = copy.deepcopy(triangles)
+   #         topTri = copy.deepcopy(triangles)
+    #        sideTri = []
+     #       for t in topTri:
+      #          for v in t:
+       #             if len(v) == 2:
+        #                v.append(topHeight)
+         #   for t in botTri:
+          #      for v in t:
+           #         if len(v) == 2:
+            #            v.append(botHeight)
+            #cubeTop = mesh.Mesh(np.zeros(len(topTri), dtype=mesh.Mesh.dtype))
+            #for i in range(0,len(topTri)):
+            #    cubeTop.vectors[i] = topTri[i]
+#            cubeBot = mesh.Mesh(np.zeros(len(botTri), dtype=mesh.Mesh.dtype))
+ #           for i in range(0,len(botTri)):
+  #              cubeBot.vectors[i] = [botTri[i][0], botTri[i][2], botTri[i][1]]
+   #         for i in range(0, len(p)):
+    #            if i == len(p)-1:
+     #               sideTri.append(getSideTri(p[i], p[0], topHeight, botHeight))
+      #          else:
+       #             sideTri.append(getSideTri(p[i], p[i+1], topHeight, botHeight))
+        #    cubeSide = mesh.Mesh(np.zeros(len(sideTri) * len(sideTri[0]), dtype=mesh.Mesh.dtype))
+         #   for i in range(0, len(sideTri)):
+          #      for j in range(0,len(sideTri[i])):
+           #         #print("i is " + str(i) + " and j is " + str(j))
+            #        cubeSide.vectors[i*2 + j] = sideTri[i][j]
+    #        cubes.append(cubeTop)
+    #        cubes.append(cubeBot)
+    #        cubes.append(cubeSide)
+    #combined_stl(cubes)
+    #drawTriangles(triangles)
+
+
+createStl()
