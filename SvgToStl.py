@@ -250,6 +250,29 @@ def getSides(pts, holes, topHeight, botHeight):
 
     return retVal
 
+def getHoles(allPts, polys, holes):
+    isActive = []
+    contains = []
+    for i in range(0, len(allPts)):
+        contains.append([])
+        isActive.append(1)
+    for i in range(len(allPts), 1, -1):
+        for k in range(k-1, 0 , -1):
+            if(polys[k].contains(polys[i])):
+            #for j in allPts[i]:
+             #   allPts[i-1].append(j)
+                if(len(contains[i]) != 0):
+                    contains[i] = []
+                contains[k].append(i)
+    for i in range(0, len(allPts)):
+        for j in range(0, len(contains[i])):
+            holes.append(len(allPts[i]))
+            allPts[i].append(allPts[j])
+            allPts.pop(j)
+            contains.pop(j)
+    print(1)
+    return allPts
+
 def createStl():
     topHeight = 0
     botHeight = 0
@@ -278,9 +301,9 @@ def createStl():
         polygons = []
         for pt in allVertPts:
             polygons.append(Polygon(pt.copy()))
-        drawPolygons(allVertPts)
+        #drawPolygons(allVertPts)
 
-
+        allVertPts = getHoles(allVertPts, polygons, holes)
         ###
         # If a polygon is inside of two polygons
         # duplicate the middle one and add a new layer for it
