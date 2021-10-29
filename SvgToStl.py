@@ -256,8 +256,8 @@ def getHoles(allPts, polys, holes):
     for i in range(0, len(allPts)):
         contains.append([])
         isActive.append(1)
-    for i in range(len(allPts), 1, -1):
-        for k in range(k-1, 0 , -1):
+    for i in range(len(allPts)-1, 1, -1):
+        for k in range(i-1, 0 , -1):
             if(polys[k].contains(polys[i])):
             #for j in allPts[i]:
              #   allPts[i-1].append(j)
@@ -265,12 +265,25 @@ def getHoles(allPts, polys, holes):
                     contains[i] = []
                 contains[k].append(i)
     for i in range(0, len(allPts)):
+        if i > len(allPts)-1:
+            continue
         for j in range(0, len(contains[i])):
-            holes.append(len(allPts[i]))
-            allPts[i].append(allPts[j])
-            allPts.pop(j)
-            contains.pop(j)
-    print(1)
+            if j > len(contains[i]) - 1:
+                continue
+            holes[i].append(len(allPts[i]))
+            for k in allPts[contains[i][j]]:
+                allPts[i].append(k)
+            #allPts.pop(contains[i][j])
+            #contains[i].pop(j)
+    # This makes no sense
+    toBeRemoved = []
+    for j in contains:
+        for i in j:
+            toBeRemoved.append(i)
+    toBeRemoved = sorted(toBeRemoved)
+    toBeRemoved = toBeRemoved[::-1]
+    for i in toBeRemoved:
+        allPts.pop(i)
     return allPts
 
 def createStl():
@@ -302,26 +315,30 @@ def createStl():
         for pt in allVertPts:
             polygons.append(Polygon(pt.copy()))
         #drawPolygons(allVertPts)
+        for i in range(len(polygons)-1):
+            for j in range(i+1, len(polygons)):
+                if polygons[i].contains(polygons[j]):
+                    print(str(i) + " Contains " + str(j))
 
         allVertPts = getHoles(allVertPts, polygons, holes)
         ###
         # If a polygon is inside of two polygons
         # duplicate the middle one and add a new layer for it
         ###
-        for i in range(0,len(allVertPts)-1):
-            if(i > len(allVertPts)-2):
-                continue
-            for j in range(i+1, len(allVertPts)):
-                if(j > len(allVertPts)-1):
-                    continue
-                if polygons[i].contains(Polygon(allVertPts[j])):
-                    print("combine " + str(i) + " with " + str(j))
-                    holes[i].append(len(allVertPts[i]))
-                    for l in allVertPts[j]:
-                        allVertPts[i].append(l)
-                    allVertPts.pop(j)
-                    polygons.pop(j)
-                    holes.pop(j)
+        #for i in range(0,len(allVertPts)-1):
+         #   if(i > len(allVertPts)-2):
+          #      continue
+           # for j in range(i+1, len(allVertPts)):
+            #    if(j > len(allVertPts)-1):
+             #       continue
+              #  if polygons[i].contains(Polygon(allVertPts[j])):
+               #     print("combine " + str(i) + " with " + str(j))
+                #    holes[i].append(len(allVertPts[i]))
+                 #   for l in allVertPts[j]:
+                  #      allVertPts[i].append(l)
+                   # allVertPts.pop(j)
+                    #polygons.pop(j)
+                    #holes.pop(j)
         topHeight = topHeight + smallerInc
         for c in range(len(allVertPts)):
             print(1)
