@@ -12,7 +12,7 @@ import earcut
 #import geopandas as gpd
 from shapely.geometry import Polygon
 # read the SVG file
-doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
+doc = minidom.parse('tampa-bay-buccaneers-logo6.svg')
 # path strings is an array containing the d values from the path in the svg file
 path_strings = [path.getAttribute('d') for path
                 in doc.getElementsByTagName('path')]
@@ -55,6 +55,19 @@ def drawLines():
                 pygame.display.flip()
             time.sleep(.5)
         time.sleep(10)
+
+def drawPolygons(polygons):
+    pygame.init()
+    surface = pygame.display.set_mode((800,800))
+    surface.fill((255,255,255))
+    RED = (255, 0, 0)
+    screen = pygame.display.set_mode((500, 500))
+    for x in polygons:
+        pygame.draw.polygon(screen, RED, x, 1)
+        pygame.display.update()
+        time.sleep(3)
+    while True:
+        time.sleep(1)
 
 #Draws line for the current vertice, used mainly for debugging
 def drawLineCurr():
@@ -245,7 +258,6 @@ def createStl():
     cubes = []
     for listOfVert in lolov:
         topHeight = topHeight + incrHeight
-        allVerts = []
         allVertPts = []
         pts = []
         holes = []
@@ -266,6 +278,13 @@ def createStl():
         polygons = []
         for pt in allVertPts:
             polygons.append(Polygon(pt.copy()))
+        drawPolygons(allVertPts)
+
+
+        ###
+        # If a polygon is inside of two polygons
+        # duplicate the middle one and add a new layer for it
+        ###
         for i in range(0,len(allVertPts)-1):
             if(i > len(allVertPts)-2):
                 continue
