@@ -12,7 +12,8 @@ import earcut
 #import geopandas as gpd
 from shapely.geometry import Polygon
 # read the SVG file
-doc = minidom.parse('tampa-bay-buccaneers-logo6.svg')
+#doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
+doc = minidom.parse('new-york-yankees-logo.svg')
 # path strings is an array containing the d values from the path in the svg file
 path_strings = [path.getAttribute('d') for path
                 in doc.getElementsByTagName('path')]
@@ -20,6 +21,9 @@ path_strings = [path.getAttribute('d') for path
 color_strings = [path.getAttribute('style') for path
                 in doc.getElementsByTagName('path')]
 doc.unlink()
+
+#amount of detail put into the curves, higher number is more detail
+detail = 10
 
 #List of list of vertices
 global lolov
@@ -80,10 +84,23 @@ def drawLineCurr():
         pygame.display.flip()
     input("press enter to continue")
 
+def getLines(newStr, i):
+    if ',' in newStr[i+1]:
+        line = newStr[i+1].strip().split()
+    else:
+        newStr[i+1] = newStr[i+1].replace('-', ' -')
+        line = newStr[i+1].strip().split()
+        newLine = []
+        for l in range(0,len(line),2):
+            newLine.append((line[l] + "," + line[l+1]))
+        line = newLine
+    return line
+
 # Loop through each path in path_strings
 for path in path_strings:
     #separate each path in path_strings out by letter
-    newStr = re.split('([a-zA-Z])', path)
+    newStr = re.split('([a-df-zA-DF-Z])', path)
+    #^[a-df-zA-DF-Z]+$
     global currPoint
     currPoint = np.array([0.0,0.0])
     global initialPoint
@@ -97,27 +114,30 @@ for path in path_strings:
         if newStr[i].strip() == 'm':
             if(len(vertices) > 2): 
                 lov.append(vertices.copy())   
+            lines = getLines(newStr, i)
             if(currPoint[0] != 0 and currPoint[1] != 0):
-                tempPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
+                tempPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
                 currPoint = np.add(tempPoint, currPoint)
                 initialPoint = currPoint.copy()
             else:
-                initialPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
-                currPoint = np.asarray(np.array(newStr[i+1].strip().split()[0].split(',')[0:2]), dtype = float)
+
+                initialPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
+                currPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
             vertices = np.empty(1)
             vertices = currPoint.copy()
-            for b in range(2, len(newStr[i+1].strip().split())):
-                currPoint = createLine(float(newStr[i+1].strip().split()[b].split(',')[0]) + currPoint[0], float(newStr[i+1].strip().split()[b].split(',')[1]) + currPoint[1], vertices)
+            for b in range(1, len(lines)):
+                currPoint = createLine(float(lines[b].split(',')[0]) + currPoint[0], float(lines[b].split(',')[0]) + currPoint[1], vertices)
         elif newStr[i].strip() == 'M':
             lov.append(vertices.copy())   
             vertices = np.empty(1)
             initialPoint = np.empty(1)
             currPoint = np.empty(1)
-            initialPoint = np.asarray(np.array(newStr[i+1].strip().split(',')[0:2]), dtype = float)
-            currPoint = np.asarray(np.array(newStr[i+1].strip().split(',')[0:2]), dtype = float)
-            vertices = np.asarray(np.array(newStr[i+1].strip().split(',')[0:2]), dtype = float)
-            for b in range(2, len(newStr[i+1].strip().split(','))):
-                currPoint = createLine(float(newStr[i+1].strip().split(',')[b]), float(newStr[i+1].strip().split(',')[b+1]), vertices)
+            lines = getLines(newStr, i)
+            initialPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
+            currPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
+            vertices = np.asarray(np.array(lines[0].split(',')), dtype = float)
+            for b in range(1, len(lines)):
+                currPoint = createLine(float(lines[b].split(',')[0]), float(lines[b].split(',')[1]))
         elif newStr[i].strip() == 'h':
             for x in range(0, len(newStr[i+1].strip().split())):
                 currPoint = createLine(float(newStr[i+1].strip().split()[x]) + currPoint[0], currPoint[1], vertices)
@@ -131,23 +151,36 @@ for path in path_strings:
             for x in range(0, len(newStr[i+1].strip().split())):
                 currPoint = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]), vertices)
         elif newStr[i].strip() == 'l':
-            line = newStr[i+1].strip().split()
+            line = getLines(newStr, i)
             for l in line:
-                arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                if ',' in l:
+                    arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                else:
+                    l = l.replace('-', ' -')
+                    arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
                 currPoint = np.add(arr, currPoint)
                 currPoint = createLine(currPoint[0], currPoint[1], vertices)
         elif newStr[i].strip() == 'L':
-            line = newStr[i+1].strip().split()
+            line = getLines(newStr, i)
+            if ',' in l:
+                arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+            else:
+                l = l.replace('-', ' -')
+                arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
             for l in line:
                 points = l.split(',')
                 currPoint = createLine(points[0], points[1], vertices)
         elif newStr[i].strip() == 'c':
-            line = newStr[i+1].strip().split()
+            line = getLines(newStr, i)
             if len(line)%3 != 0:
-                print("Some error idk c should be divisible by 3")
+                #print("Some error idk c should be divisible by 3")
                 if len(line) == 1:
                     for l in line:
-                        arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                        if ',' in l:
+                            arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                        else:
+                            l = l.replace('-', ' -')
+                            arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
                         currPoint = np.add(arr, currPoint)
                         currPoint = createLine(currPoint[0], currPoint[1], vertices)
             else:
@@ -155,18 +188,21 @@ for path in path_strings:
                     x1 = np.add(currPoint, np.asarray(np.array(line[x].strip().split(',')), dtype = float))
                     x2 = np.add(currPoint, np.asarray(np.array(line[x+1].strip().split(',')), dtype = float))
                     x3 = np.add(currPoint, np.asarray(np.array(line[x+2].strip().split(',')), dtype = float))
-                    newVertices = bp(currPoint, x1, x2, x3, 5)
+                    newVertices = bp(currPoint, x1, x2, x3, detail)
                     vertices = np.append(vertices, newVertices)
                     currPoint = x3
         elif newStr[i].strip() == 'C':
-            line = newStr[i+1].strip().split()
-            if len(line)%3 != 0:
-                print("some error in C part")
+            line = getLines(newStr, i)
+            if ',' in l:
+                arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+            else:
+                l = l.replace('-', ' -')
+                arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
             for x in range(0, len(line), 3):
                 x1 = np.asarray(np.array(line[x].strip().split(',')), dtype = float)
                 x2 = np.asarray(np.array(line[x+1].strip().split(',')), dtype = float)
                 x3 = np.asarray(np.array(line[x+2].strip().split(',')), dtype = float)
-                newVertices = bp(currPoint, x1, x2, x3, 5)
+                newVertices = bp(currPoint, x1, x2, x3, detail)
                 vertices = np.append(vertices, newVertices)
                 currPoint = x3
         elif newStr[i].strip() == 'z' or newStr[i].strip() == 'Z':
@@ -179,7 +215,7 @@ for path in path_strings:
             draw = 0
 
     lov.append(vertices)
-    print(len(vertices))
+    #print(len(vertices))
     lolov.append(lov.copy())
     lov.clear()
     
@@ -256,40 +292,34 @@ def getHoles(allPts, polys, holes):
     for i in range(0, len(allPts)):
         contains.append([])
         isActive.append(1)
-    for i in range(len(allPts)-1, 1, -1):
-        for k in range(i-1, 0 , -1):
-            if(polys[k].contains(polys[i])):
-            #for j in allPts[i]:
-             #   allPts[i-1].append(j)
-                if(len(contains[i]) != 0):
-                    contains[i] = []
-                contains[k].append(i)
-    for i in range(0, len(allPts)):
-        if i > len(allPts)-1:
-            continue
-        for j in range(0, len(contains[i])):
-            if j > len(contains[i]) - 1:
-                continue
+    for i in range(len(polys)-1):
+        for j in range(i+1, len(polys)):
+            if polys[i].contains(polys[j]):
+                contains[i].append(j)
+    for i in range(len(contains)):
+        for j in contains[i]:
+            for k in contains[j]:
+                contains[i].remove(k)
+            contains[j] = []
+    for i in range(len(contains)):
+        for j in contains[i]:
             holes[i].append(len(allPts[i]))
-            for k in allPts[contains[i][j]]:
+            for k in allPts[j]:
                 allPts[i].append(k)
-            #allPts.pop(contains[i][j])
-            #contains[i].pop(j)
-    # This makes no sense
-    toBeRemoved = []
-    for j in contains:
-        for i in j:
-            toBeRemoved.append(i)
-    toBeRemoved = sorted(toBeRemoved)
-    toBeRemoved = toBeRemoved[::-1]
-    for i in toBeRemoved:
-        allPts.pop(i)
+    allContains=[]
+    for i in contains:
+        for j in i:
+            allContains.append(j)
+    allContains.sort()
+    allContains = allContains[::-1]
+    for i in range(len(allContains)):
+        allPts.pop(allContains[i])
     return allPts
 
 def createStl():
     topHeight = 0
     botHeight = 0
-    incrHeight = 10
+    incrHeight = 1
     smallerInc = 1
     cubes = []
     for listOfVert in lolov:
@@ -315,33 +345,10 @@ def createStl():
         for pt in allVertPts:
             polygons.append(Polygon(pt.copy()))
         #drawPolygons(allVertPts)
-        for i in range(len(polygons)-1):
-            for j in range(i+1, len(polygons)):
-                if polygons[i].contains(polygons[j]):
-                    print(str(i) + " Contains " + str(j))
 
         allVertPts = getHoles(allVertPts, polygons, holes)
-        ###
-        # If a polygon is inside of two polygons
-        # duplicate the middle one and add a new layer for it
-        ###
-        #for i in range(0,len(allVertPts)-1):
-         #   if(i > len(allVertPts)-2):
-          #      continue
-           # for j in range(i+1, len(allVertPts)):
-            #    if(j > len(allVertPts)-1):
-             #       continue
-              #  if polygons[i].contains(Polygon(allVertPts[j])):
-               #     print("combine " + str(i) + " with " + str(j))
-                #    holes[i].append(len(allVertPts[i]))
-                 #   for l in allVertPts[j]:
-                  #      allVertPts[i].append(l)
-                   # allVertPts.pop(j)
-                    #polygons.pop(j)
-                    #holes.pop(j)
-        topHeight = topHeight + smallerInc
         for c in range(len(allVertPts)):
-            print(1)
+            #print(1)
             verts = []
             for b in range(len(allVertPts[c])):
                 verts.append(allVertPts[c][b][0])
