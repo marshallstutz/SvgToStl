@@ -44,7 +44,7 @@ def createLine(x, y, vertices):
     arr = np.array([float(x), float(y)])
     currPoint = arr
     vertices = np.append(vertices, currPoint)
-    return currPoint
+    return currPoint, vertices
 
 #Draw all the vertices as lines, used mainly for debugging
 def drawLines():
@@ -126,7 +126,7 @@ for path in path_strings:
             vertices = np.empty(1)
             vertices = currPoint.copy()
             for b in range(1, len(lines)):
-                currPoint = createLine(float(lines[b].split(',')[0]) + currPoint[0], float(lines[b].split(',')[0]) + currPoint[1], vertices)
+                currPoint, vertices = createLine(float(lines[b].split(',')[0]) + currPoint[0], float(lines[b].split(',')[0]) + currPoint[1], vertices)
         elif newStr[i].strip() == 'M':
             lov.append(vertices.copy())   
             vertices = np.empty(1)
@@ -137,19 +137,19 @@ for path in path_strings:
             currPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
             vertices = np.asarray(np.array(lines[0].split(',')), dtype = float)
             for b in range(1, len(lines)):
-                currPoint = createLine(float(lines[b].split(',')[0]), float(lines[b].split(',')[1]))
+                currPoint, vertices = createLine(float(lines[b].split(',')[0]), float(lines[b].split(',')[1]))
         elif newStr[i].strip() == 'h':
             for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint = createLine(float(newStr[i+1].strip().split()[x]) + currPoint[0], currPoint[1], vertices)
+                currPoint, vertices = createLine(float(newStr[i+1].strip().split()[x]) + currPoint[0], currPoint[1], vertices)
         elif newStr[i].strip() == 'H':
             for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint = createLine(float(newStr[i+1].strip().split()[x]), currPoint[1], vertices)
+                currPoint, vertices = createLine(float(newStr[i+1].strip().split()[x]), currPoint[1], vertices)
         elif newStr[i].strip() == 'v':
             for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]) + currPoint[1], vertices)
+                currPoint, vertices = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]) + currPoint[1], vertices)
         elif newStr[i].strip() == 'V':
             for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]), vertices)
+                currPoint, vertices = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]), vertices)
         elif newStr[i].strip() == 'l':
             line = getLines(newStr, i)
             for l in line:
@@ -159,7 +159,7 @@ for path in path_strings:
                     l = l.replace('-', ' -')
                     arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
                 currPoint = np.add(arr, currPoint)
-                currPoint = createLine(currPoint[0], currPoint[1], vertices)
+                currPoint, vertices = createLine(currPoint[0], currPoint[1], vertices)
         elif newStr[i].strip() == 'L':
             line = getLines(newStr, i)
             if ',' in l:
@@ -169,7 +169,7 @@ for path in path_strings:
                 arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
             for l in line:
                 points = l.split(',')
-                currPoint = createLine(points[0], points[1], vertices)
+                currPoint, vertices = createLine(points[0], points[1], vertices)
         elif newStr[i].strip() == 'c':
             line = getLines(newStr, i)
             if len(line)%3 != 0:
@@ -182,7 +182,7 @@ for path in path_strings:
                             l = l.replace('-', ' -')
                             arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
                         currPoint = np.add(arr, currPoint)
-                        currPoint = createLine(currPoint[0], currPoint[1], vertices)
+                        currPoint, vertices = createLine(currPoint[0], currPoint[1], vertices)
             else:
                 for x in range(0, len(line), 3):
                     x1 = np.add(currPoint, np.asarray(np.array(line[x].strip().split(',')), dtype = float))
