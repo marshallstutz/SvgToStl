@@ -12,11 +12,29 @@ import earcut
 #import geopandas as gpd
 from shapely.geometry import Polygon
 # read the SVG file
-#doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
-doc = minidom.parse('new-york-yankees-logo.svg')
+doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
+#doc = minidom.parse('new-york-yankees-logo.svg')
 # path strings is an array containing the d values from the path in the svg file
 path_strings = [path.getAttribute('d') for path
                 in doc.getElementsByTagName('path')]
+# path strings is an array containing the d values from the path in the svg file
+transform_strings = [path.getAttribute('transform') for path
+                in doc.getElementsByTagName('g')]
+
+allPaths = []
+for path in doc.getElementsByTagName('g'):
+    transform = path.getAttribute('transform')
+    paths = []
+    if path.hasChildNodes():
+        for p in path.childNodes:
+            try:
+                paths.append(p.getAttribute('d'))
+            except:
+                continue
+    allPaths.append((transform, paths))
+   # for p in path.getElementByTagName('path'):
+    #    print(p)
+    #print(path)
 # the color value for each path, not used
 color_strings = [path.getAttribute('style') for path
                 in doc.getElementsByTagName('path')]
@@ -97,127 +115,141 @@ def getLines(newStr, i):
     return line
 
 # Loop through each path in path_strings
-for path in path_strings:
+global currPoint
+currPoint = np.array([0.0,0.0])
+global initialPoint
+initialPoint = np.array([0.0,0.0])
+for g in allPaths:
+    if len(g[0]) == 0:
+        continue
+    if g[0].split('(')[0] != 'matrix':
+        continue
+#    if ',' in g[0]:
+ #       matrices = g[0].split('(')[1].split(')')[0].split(',')
+  #  else:
+   #     matrices = g[0].split('(')[1].split(')')[0].split(' ')
+    #currPoint = np.array([float(matrices[0]) * currPoint[0] + float(matrices[2]) * currPoint[1] + float(matrices[4]), float(matrices[1]) * currPoint[0] + float(matrices[3]) * currPoint[1] + float(matrices[5])])
+    #initialPoint = currPoint.copy()
+    for u in range(1, len(g[1])):
+        path = g[1][u]
+
+#for path in path_strings:
     #separate each path in path_strings out by letter
-    newStr = re.split('([a-df-zA-DF-Z])', path)
-    #^[a-df-zA-DF-Z]+$
-    global currPoint
-    currPoint = np.array([0.0,0.0])
-    global initialPoint
-    initialPoint = np.array([0.0,0.0])
-    global vertices
-    vertices = np.array([0.0,0.0])
+        newStr = re.split('([a-df-zA-DF-Z])', path)
+        #^[a-df-zA-DF-Z]+$
+        global vertices
+        vertices = np.array([0.0,0.0])
 
-    draw = 0
-    #loop through each letter in the path
-    for i in range(len(newStr)):
-        if newStr[i].strip() == 'm':
-            if(len(vertices) > 2): 
+        draw = 0
+        #loop through each letter in the path
+        for i in range(len(newStr)):
+            if newStr[i].strip() == 'm':
+                if(len(vertices) > 2): 
+                    lov.append(vertices.copy())   
+                lines = getLines(newStr, i)
+                if(currPoint[0] != 0 or currPoint[1] != 0):
+                    tempPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
+                    currPoint = np.add(tempPoint, currPoint)
+                    initialPoint = currPoint.copy()
+                else:
+
+                    initialPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
+                    currPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
+                vertices = np.empty(1)
+                vertices = currPoint.copy()
+                for b in range(1, len(lines)):
+                    currPoint, vertices = createLine(float(lines[b].split(',')[0]) + currPoint[0], float(lines[b].split(',')[0]) + currPoint[1], vertices)
+            elif newStr[i].strip() == 'M':
                 lov.append(vertices.copy())   
-            lines = getLines(newStr, i)
-            if(currPoint[0] != 0 and currPoint[1] != 0):
-                tempPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
-                currPoint = np.add(tempPoint, currPoint)
-                initialPoint = currPoint.copy()
-            else:
-
+                vertices = np.empty(1)
+                initialPoint = np.empty(1)
+                currPoint = np.empty(1)
+                lines = getLines(newStr, i)
                 initialPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
                 currPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
-            vertices = np.empty(1)
-            vertices = currPoint.copy()
-            for b in range(1, len(lines)):
-                currPoint, vertices = createLine(float(lines[b].split(',')[0]) + currPoint[0], float(lines[b].split(',')[0]) + currPoint[1], vertices)
-        elif newStr[i].strip() == 'M':
-            lov.append(vertices.copy())   
-            vertices = np.empty(1)
-            initialPoint = np.empty(1)
-            currPoint = np.empty(1)
-            lines = getLines(newStr, i)
-            initialPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
-            currPoint = np.asarray(np.array(lines[0].split(',')), dtype = float)
-            vertices = np.asarray(np.array(lines[0].split(',')), dtype = float)
-            for b in range(1, len(lines)):
-                currPoint, vertices = createLine(float(lines[b].split(',')[0]), float(lines[b].split(',')[1]))
-        elif newStr[i].strip() == 'h':
-            for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint, vertices = createLine(float(newStr[i+1].strip().split()[x]) + currPoint[0], currPoint[1], vertices)
-        elif newStr[i].strip() == 'H':
-            for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint, vertices = createLine(float(newStr[i+1].strip().split()[x]), currPoint[1], vertices)
-        elif newStr[i].strip() == 'v':
-            for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint, vertices = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]) + currPoint[1], vertices)
-        elif newStr[i].strip() == 'V':
-            for x in range(0, len(newStr[i+1].strip().split())):
-                currPoint, vertices = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]), vertices)
-        elif newStr[i].strip() == 'l':
-            line = getLines(newStr, i)
-            for l in line:
-                if ',' in l:
-                    arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                vertices = np.asarray(np.array(lines[0].split(',')), dtype = float)
+                for b in range(1, len(lines)):
+                    currPoint, vertices = createLine(float(lines[b].split(',')[0]), float(lines[b].split(',')[1]))
+            elif newStr[i].strip() == 'h':
+                for x in range(0, len(newStr[i+1].strip().split())):
+                    currPoint, vertices = createLine(float(newStr[i+1].strip().split()[x]) + currPoint[0], currPoint[1], vertices)
+            elif newStr[i].strip() == 'H':
+                for x in range(0, len(newStr[i+1].strip().split())):
+                    currPoint, vertices = createLine(float(newStr[i+1].strip().split()[x]), currPoint[1], vertices)
+            elif newStr[i].strip() == 'v':
+                for x in range(0, len(newStr[i+1].strip().split())):
+                    currPoint, vertices = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]) + currPoint[1], vertices)
+            elif newStr[i].strip() == 'V':
+                for x in range(0, len(newStr[i+1].strip().split())):
+                    currPoint, vertices = createLine(currPoint[0], float(newStr[i+1].strip().split()[x]), vertices)
+            elif newStr[i].strip() == 'l':
+                line = getLines(newStr, i)
+                for l in line:
+                    if ',' in l:
+                        arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                    else:
+                        l = l.replace('-', ' -')
+                        arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
+                    currPoint = np.add(arr, currPoint)
+                    currPoint, vertices = createLine(currPoint[0], currPoint[1], vertices)
+            elif newStr[i].strip() == 'L':
+                line = getLines(newStr, i)
+                for l in line:
+                    if ',' in l:
+                        arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                    else:
+                        l = l.replace('-', ' -')
+                        arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
+                    points = l.split(',')
+                    currPoint, vertices = createLine(points[0], points[1], vertices)
+            elif newStr[i].strip() == 'c':
+                line = getLines(newStr, i)
+                if len(line)%3 != 0:
+                    #print("Some error idk c should be divisible by 3")
+                    if len(line) == 1:
+                        for l in line:
+                            if ',' in l:
+                                arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                            else:
+                                l = l.replace('-', ' -')
+                                arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
+                            currPoint = np.add(arr, currPoint)
+                            currPoint, vertices = createLine(currPoint[0], currPoint[1], vertices)
                 else:
-                    l = l.replace('-', ' -')
-                    arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
-                currPoint = np.add(arr, currPoint)
-                currPoint, vertices = createLine(currPoint[0], currPoint[1], vertices)
-        elif newStr[i].strip() == 'L':
-            line = getLines(newStr, i)
-            if ',' in l:
-                arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
-            else:
-                l = l.replace('-', ' -')
-                arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
-            for l in line:
-                points = l.split(',')
-                currPoint, vertices = createLine(points[0], points[1], vertices)
-        elif newStr[i].strip() == 'c':
-            line = getLines(newStr, i)
-            if len(line)%3 != 0:
-                #print("Some error idk c should be divisible by 3")
-                if len(line) == 1:
-                    for l in line:
-                        if ',' in l:
-                            arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
-                        else:
-                            l = l.replace('-', ' -')
-                            arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
-                        currPoint = np.add(arr, currPoint)
-                        currPoint, vertices = createLine(currPoint[0], currPoint[1], vertices)
-            else:
+                    for x in range(0, len(line), 3):
+                        x1 = np.add(currPoint, np.asarray(np.array(line[x].strip().split(',')), dtype = float))
+                        x2 = np.add(currPoint, np.asarray(np.array(line[x+1].strip().split(',')), dtype = float))
+                        x3 = np.add(currPoint, np.asarray(np.array(line[x+2].strip().split(',')), dtype = float))
+                        newVertices = bp(currPoint, x1, x2, x3, detail)
+                        vertices = np.append(vertices, newVertices)
+                        currPoint = x3
+            elif newStr[i].strip() == 'C':
+                line = getLines(newStr, i)
+                #if ',' in l:
+                #    arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+                #else:
+                #    l = l.replace('-', ' -')
+                #    arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
                 for x in range(0, len(line), 3):
-                    x1 = np.add(currPoint, np.asarray(np.array(line[x].strip().split(',')), dtype = float))
-                    x2 = np.add(currPoint, np.asarray(np.array(line[x+1].strip().split(',')), dtype = float))
-                    x3 = np.add(currPoint, np.asarray(np.array(line[x+2].strip().split(',')), dtype = float))
+                    x1 = np.asarray(np.array(line[x].strip().split(',')), dtype = float)
+                    x2 = np.asarray(np.array(line[x+1].strip().split(',')), dtype = float)
+                    x3 = np.asarray(np.array(line[x+2].strip().split(',')), dtype = float)
                     newVertices = bp(currPoint, x1, x2, x3, detail)
                     vertices = np.append(vertices, newVertices)
                     currPoint = x3
-        elif newStr[i].strip() == 'C':
-            line = getLines(newStr, i)
-            if ',' in l:
-                arr = np.asarray(np.array(l.strip().split(',')), dtype = float)
+            elif newStr[i].strip() == 'z' or newStr[i].strip() == 'Z':
+                if(len(vertices) > 2): 
+                    vertices = np.append(vertices, initialPoint)
+                currPoint = initialPoint.copy()
             else:
-                l = l.replace('-', ' -')
-                arr = np.asarray(np.array(l.strip().split(' ')), dtype = float)
-            for x in range(0, len(line), 3):
-                x1 = np.asarray(np.array(line[x].strip().split(',')), dtype = float)
-                x2 = np.asarray(np.array(line[x+1].strip().split(',')), dtype = float)
-                x3 = np.asarray(np.array(line[x+2].strip().split(',')), dtype = float)
-                newVertices = bp(currPoint, x1, x2, x3, detail)
-                vertices = np.append(vertices, newVertices)
-                currPoint = x3
-        elif newStr[i].strip() == 'z' or newStr[i].strip() == 'Z':
-            if(len(vertices) > 2): 
-                vertices = np.append(vertices, initialPoint)
-            currPoint = initialPoint.copy()
-        else:
-            draw = 1
-        if draw == 1:
-            draw = 0
+                draw = 1
+            if draw == 1:
+                draw = 0
 
-    lov.append(vertices)
-    #print(len(vertices))
-    lolov.append(lov.copy())
-    lov.clear()
+        lov.append(vertices)
+        #print(len(vertices))
+        lolov.append(lov.copy())
+        lov.clear()
     
 def drawTriangles(triangles):
     WHITE = (255, 255, 255)
