@@ -13,7 +13,10 @@ import earcut
 from shapely.geometry import Polygon
 # read the SVG file
 #doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
-doc = minidom.parse('new-york-yankees-logo.svg')
+#doc = minidom.parse('chicago-cubs-logo.svg')
+doc = minidom.parse('burger-king-logo.svg')
+#doc = minidom.parse('chicago-bears-logo.svg')
+#doc = minidom.parse('new-york-yankees-logo.svg')
 # path strings is an array containing the d values from the path in the svg file
 path_strings = [path.getAttribute('d') for path
                 in doc.getElementsByTagName('path')]
@@ -32,6 +35,10 @@ for path in doc.getElementsByTagName('g'):
             except:
                 continue
     allPaths.append(paths)
+
+if len(allPaths) == 0:
+    allPaths.append([])
+    allPaths[0] = path_strings
    # for p in path.getElementByTagName('path'):
     #    print(p)
     #print(path)
@@ -102,15 +109,25 @@ def drawLineCurr():
     input("press enter to continue")
 
 def getLines(newStr, i):
-    if ',' in newStr[i+1]:
-        line = newStr[i+1].strip().split()
-    else:
-        newStr[i+1] = newStr[i+1].replace('-', ' -')
-        line = newStr[i+1].strip().split()
-        newLine = []
-        for l in range(0,len(line),2):
-            newLine.append((line[l] + "," + line[l+1]))
-        line = newLine
+    #remove all spaces before and after commas and -
+    newStr[i+1] = newStr[i+1].replace(' ,', ',')
+    newStr[i+1] = newStr[i+1].replace(', ', ',')
+    newStr[i+1] = newStr[i+1].replace(' -', '-')
+    newStr[i+1] = newStr[i+1].replace('- ', '-')
+    #add a space before -
+    newStr[i+1] = newStr[i+1].replace('-', ' -')
+    #remove spaces after comma (only applicable if - right after comma)
+    newStr[i+1] = newStr[i+1].replace(', ', ',')
+    #change commma to space
+    newStr[i+1] = newStr[i+1].replace(',', ' ')
+    #make sure to reconnect e and -
+    newStr[i+1] = newStr[i+1].replace('e -', 'e-')
+    #now only have to split based on spaces
+    line = newStr[i+1].strip().split()
+    newLine = []
+    for l in range(0,len(line),2):
+        newLine.append((line[l] + "," + line[l+1]))
+    line = newLine
     return line
 
 def printMaxes(lov):
@@ -145,21 +162,19 @@ initialPoint = np.array([0.0,0.0])
 global startPoint
 startPoint = np.array([0.0,0.0])
 for g in allPaths:
-    if len(g[0]) == 0:
-        continue
-    if g[0].split('(')[0] != 'matrix':
-        continue
-    if ',' in g[0]:
-        matrices = g[0].split('(')[1].split(')')[0].split(',')
-    else:
-        matrices = g[0].split('(')[1].split(')')[0].split(' ')
-    #startPoint = np.array([float(matrices[0]) * currPoint[0] + float(matrices[2]) * currPoint[1] + float(matrices[4]), float(matrices[1]) * currPoint[0] + float(matrices[3]) * currPoint[1] + float(matrices[5])])
-    #startPoint = np.array([float(matrices[4]), -float(matrices[5])])
-    #initialPoint = currPoint.copy()
-    for u in range(1, len(g)):
-        #currPoint = np.array([float(matrices[0]) * currPoint[0] + float(matrices[2]) * currPoint[1] + float(matrices[4]), float(matrices[1]) * currPoint[0] + float(matrices[3]) * currPoint[1] + float(matrices[5])])
+    matrices = [1, 0, 0, 1, 0, 0]
+    for u in range(len(g)):
+        if len(g[u]) == 0:
+            continue
+        if g[u].split('(')[0] == 'matrix':
+            if ',' in g[0]:
+                matrices = g[0].split('(')[1].split(')')[0].split(',')
+            else:
+                matrices = g[0].split('(')[1].split(')')[0].split(' ')
+            continue
+        if 'translate' in g[u]:
+            continue
         currPoint = np.array([0.0,0.0])
-        #currPoint = startPoint.copy()
         initialPoint = currPoint.copy()
         path = g[u]
 
@@ -192,7 +207,8 @@ for g in allPaths:
                     currPoint, vertices = createLine(float(lines[b].split(',')[0]) + currPoint[0], float(lines[b].split(',')[1]) + currPoint[1], vertices)
             elif newStr[i].strip() == 'M':
                 savedCurve = np.array([0.0,0.0])
-                lov.append(vertices.copy())   
+                if(len(vertices) > 2): 
+                    lov.append(vertices.copy())     
                 vertices = np.empty(1)
                 initialPoint = np.empty(1)
                 currPoint = np.empty(1)
@@ -444,8 +460,8 @@ def createStl():
     incrHeight = 1
     smallerInc = 1
     cubes = []
-    for lov in lolov:
-        printMaxes(lov)
+    #for lov in lolov:
+     #   printMaxes(lov)
     #min = normalizePoints()
     #for listOfVert in lolov:
     #    for vert in listOfVert:
