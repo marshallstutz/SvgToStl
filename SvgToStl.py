@@ -13,7 +13,7 @@ import earcut
 from shapely.geometry import Polygon
 # read the SVG file
 #doc = minidom.parse('tampa-bay-buccaneers-logo.svg')
-doc = minidom.parse('new-york-yankees-logoF3.svg')
+doc = minidom.parse('new-york-yankees-logo.svg')
 # path strings is an array containing the d values from the path in the svg file
 path_strings = [path.getAttribute('d') for path
                 in doc.getElementsByTagName('path')]
@@ -113,11 +113,37 @@ def getLines(newStr, i):
         line = newLine
     return line
 
+def printMaxes(lov):
+    maxX = 0
+    minX = 100000
+    maxY = 0
+    minY = 100000
+    for vert in lov:
+        for v in range(len(vert)):
+            if v % 2 == 1:
+                #odd // y
+                if maxY < vert[v]:
+                    maxY = vert[v]
+                if minY > vert[v]:
+                    minY = vert[v]
+                
+            else:
+                #even // x
+                if maxX < vert[v]:
+                    maxX = vert[v]
+                if minX > vert[v]:
+                    minX = vert[v]
+
+        print(minX, maxX, minY, maxY)
+
+
 # Loop through each path in path_strings
 global currPoint
 currPoint = np.array([0.0,0.0])
 global initialPoint
 initialPoint = np.array([0.0,0.0])
+global startPoint
+startPoint = np.array([0.0,0.0])
 for g in allPaths:
     if len(g[0]) == 0:
         continue
@@ -128,12 +154,12 @@ for g in allPaths:
     else:
         matrices = g[0].split('(')[1].split(')')[0].split(' ')
     #startPoint = np.array([float(matrices[0]) * currPoint[0] + float(matrices[2]) * currPoint[1] + float(matrices[4]), float(matrices[1]) * currPoint[0] + float(matrices[3]) * currPoint[1] + float(matrices[5])])
-    startPoint = np.array([float(matrices[4]), float(matrices[5])])
+    #startPoint = np.array([float(matrices[4]), -float(matrices[5])])
     #initialPoint = currPoint.copy()
     for u in range(1, len(g)):
         #currPoint = np.array([float(matrices[0]) * currPoint[0] + float(matrices[2]) * currPoint[1] + float(matrices[4]), float(matrices[1]) * currPoint[0] + float(matrices[3]) * currPoint[1] + float(matrices[5])])
-        #currPoint = np.array([0.0,0.0])
-        currPoint = startPoint
+        currPoint = np.array([0.0,0.0])
+        #currPoint = startPoint.copy()
         initialPoint = currPoint.copy()
         path = g[u]
 
@@ -291,6 +317,14 @@ for g in allPaths:
 
         lov.append(vertices)
         #print(len(vertices))
+        for vert in range(len(lov)):
+            for v in range(len(lov[vert])):
+                if v % 2 == 1:
+                    #odd // y
+                    lov[vert][v] = float(matrices[1]) * lov[vert][v-1] + float(matrices[3]) * lov[vert][v] + float(matrices[5])
+                else:
+                    #even // x
+                    lov[vert][v] = float(matrices[0]) * lov[vert][v] + float(matrices[2]) * lov[vert][v+1] + float(matrices[4])
         lolov.append(lov.copy())
         lov.clear()
     
@@ -410,6 +444,8 @@ def createStl():
     incrHeight = 1
     smallerInc = 1
     cubes = []
+    for lov in lolov:
+        printMaxes(lov)
     #min = normalizePoints()
     #for listOfVert in lolov:
     #    for vert in listOfVert:
